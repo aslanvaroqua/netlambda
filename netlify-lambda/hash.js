@@ -1,65 +1,39 @@
 require('dotenv').config();
-"use strict";
-
-/**
- * gets instance of the cosmicjs api
- * @private
- * @return {object} cosmicApi
- */
-const cosmic  = require("cosmicjs")(); //
-
-// TO DO : MOVE TO CONFIG
-const _slug = { name : "duas-americas-backend-content"};
-
-/**
- * gets bucket from cosmicjs
- * @private
- * @return {object} bucket
- */
-const _bucket  = () => {
-    return cosmic.bucket({slug: _slug.name});
+const crypto = require('crypto');
+const cosmicjs = require('cosmicjs')();
+const headers = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type"
 };
-/**
- * creates the response and calls back
- * @private
- * @constructor
- * @param {list} apiResponse - A list of objects
- * @return {object} res = http response
- */
-const _fmt = (apiResponse) => {
-    console.log(apiResponse.objects[3]);
-    // TO DO: create formatters for each object
-    return {
+
+exports.handler = function(event, context, callback) {
+    let nonce = event.queryStringParameters.nonce;
+    let output;
+    if (nonce) {
+        output = getJsonOutput("200", "OK", hashWithNonce(nonce));
+    } else {
+        output = getJsonOutput("400", "Required querystring property is missing.", "");
+    }
+    if (process.env.DEBUG === "true") {
+        output.debug = getDebugInfo(nonce, event, context);
+        output.env = process.env;
+    }
+
+    callback(null, {
         statusCode: 200,
-        body: apiResponse.objects[3]
-    };
-};
+        headers: headers,
+        body: JSON.stringify(output)
+    });
+}
 
+function hashWithNonce(nonce) {
+    return crypto.createHmac("SHA256", process.env.API_SECRET).update(nonce).digest("base64");
+}
 
-/**
- * creates the response and calls back
- * @private
- * @constructor
- * @return {object} fmt - http resp
- */
-const _process = function() {
-    _bucket()
-        .getObjects()
-        .then(_fmt)
-        .catch(console.log);
-};
+function getJsonOutput(status, message, hash) {
+    return { "status": status, "message": message, "hash": hash };
+}
 
-/*
- * parses the api response and gives the user a reply.
- * @public
- * @constructor
- * @param {object} evt - an aws event
- * @param {object} ctx aws event context
- * @param {function} cb
- * @returns {Promise}
- */
-exports.handler = (evt,ctx,cb) => {
-    cb(null,_process());
-};
-
-_process();
+function getDebugInfo(nonce, event, context) {
+    return { "apiKey": process.env.API_KEY, "event": event, "context": context };
+}

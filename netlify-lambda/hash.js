@@ -1,6 +1,6 @@
 require('dotenv').config();
 const crypto = require('crypto');
-
+const cosmicjs = require('cosmicjs')();
 const headers = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type"
